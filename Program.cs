@@ -9,6 +9,7 @@ using System.Text.Json.Serialization;
 using Newtonsoft.Json.Linq;
 using System.Linq;
 using ConsoleApp_Prompt_Testing.Models;
+using System.Net.Http.Json;
 
 class Program
 {
@@ -122,12 +123,12 @@ class Program
             catch (Exception ex)
             {
                 Console.WriteLine($"Error processing prompt {i + 1}: {ex.Message}");
-                await LogResponseToFile(i, prompts[i], new ChatProviderResponse(), ex.Message);
+                await LogResponseToFile(i, prompts[i], new ChatProviderValidationResponse(), ex.Message);
             }
         }
     }
 
-    static async Task<ChatProviderResponse> SendChatRequest(ChatProviderRequest request)
+    static async Task<ChatProviderValidationResponse> SendChatRequest(ChatProviderRequest request)
     {
         try
         {
@@ -138,14 +139,14 @@ class Program
             response.EnsureSuccessStatusCode();
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            var chatResponse = JsonSerializer.Deserialize<ChatProviderResponse>(responseContent);
+            var chatValidationResponse = JsonSerializer.Deserialize<ChatProviderValidationResponse>(responseContent);
 
-            if (chatResponse?.ChatResponse == null)
+            if (chatValidationResponse?.ChatResponse == null)
             {
                 throw new Exception("Received empty response from server");
             }
 
-            return chatResponse;
+            return chatValidationResponse;
         }
         catch (HttpRequestException ex)
         {
@@ -153,18 +154,37 @@ class Program
         }
     }
 
-    static async Task LogResponseToFile(int count, string prompt, ChatProviderResponse response, string? errormsg = null)
+    static async Task LogResponseToFile(int count, string prompt, ChatProviderValidationResponse response, string? errormsg = null)
     {
         var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-        var logEntry = $"[{count}.\n{timestamp}]\nPrompt: {prompt}";
+        var logEntry = $"{count}.\n[{timestamp}]\nPrompt: {prompt}";
 
         if (!string.IsNullOrEmpty(errormsg))
         {
             logEntry += $"\nError: {errormsg}";
         }
-        else if (response != null)
+        else if (response?.ValidationResponse != null)
         {
-            logEntry += $"\nResponse: {response.ChatResponse}\nQuery: {response.Query}\nValidation Response:{response.ValidationResponse}";
+            var jsonObject = JObject.Parse(response.ValidationResponse);
+            var questionAnswer = jsonObject["user_question_answer"]?.FirstOrDefault();
+            string validationResponse = "";
+
+            if (questionAnswer != null)
+            {
+                string? userQuestion = questionAnswer["user_question"]?.ToString();
+                string? generatedSql = questionAnswer["generated_sql"]?.ToString();
+                string? sqlResults = questionAnswer["sql_results"]?.ToString();
+                string? thoughts = questionAnswer["thoughts"]?.ToString();
+                int rating = questionAnswer["rating"]?.Value<int>() ?? 0;
+
+                validationResponse = $"Question: {userQuestion}\n" +
+                                   $"SQL: {generatedSql}\n\n" +
+                                   $"Results: {sqlResults}\n\n" +
+                                   $"Thoughts: {thoughts}\n\n" +
+                                   $"Rating: {rating}\n\n";
+            }
+
+            logEntry += $"\nResponse: {response.ChatResponse}\n\nQuery: {response.Query}\n\n# Validation Response #\n{validationResponse}";
         }
 
         await File.AppendAllTextAsync(outputFile, logEntry);
