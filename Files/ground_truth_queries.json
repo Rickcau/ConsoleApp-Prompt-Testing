@@ -1,0 +1,114 @@
+{
+  "user_question_answer": [
+    {
+      "user_question": "How many streams were viewed on amc+ with amazon in us in January 2024?",
+      "expected_sql": "SELECT SUM(NUMBER_STREAMED) AS total_streams FROM V_FCT_RAG_MODEL_CONTENT_VIEWS_MOCK WHERE brand = 'amc +' AND distributor = 'amazon' AND country_code = 'us' AND month = '01' AND year = '2024';",
+      "sql_results": "5232206"
+    },
+    {
+      "user_question": "What is the total watch time for Acorn on Apple in the United States in Q1 2024?",
+      "expected_sql": "SELECT SUM(MINUTES_VIEWS_ALL) AS total_min_viewed FROM V_FCT_RAG_MODEL_CONTENT_VIEWS_MOCK WHERE brand = 'acorn' AND distributor = 'apple' AND country_code = 'us' AND month IN ('01', '02', '03') AND year = 2024 group by month, country_code",
+      "sql_results": "12228263, 9670004 11874699"
+    },
+    {
+      "user_question": "How many first streams were recorded for the annual subscriptions of Sundance Now with Amazon in Canada by the end of summer 2024?",
+      "expected_sql": "SELECT SUM(isnull(NUMBER_FIRST_STREAM,0)) AS total_first_streams FROM V_FCT_RAG_MODEL_CONTENT_VIEWS_MOCK WHERE brand = 'sundance now' AND distributor = 'amazon'AND country_code = 'ca' AND subscription_term = 'annual' AND month in ('01','02','03','04','05','06','07','08') AND year = 2024 group by subscription_term;",
+      "sql_results": "108"
+    },
+    {
+      "user_question": "What is the watch time on IFC Films via the Primitime YouTube during the last 12 months?",
+      "expected_sql": "SELECT SUM(MINUTES_VIEWS_ALL) AS total_min_viewed FROM V_FCT_RAG_MODEL_CONTENT_VIEWS_MOCK WHERE brand = 'IFC FILM UNL' AND distributor = 'YOUTUBE PRIMETIME' AND ((month in ('11', '12') AND year = 2023) OR (month in ('01', '02', '03', '04', '05', '06', '07', '08', '09', '10') AND year = 2024));",
+      "sql_results": "158688"
+    },
+    {
+      "user_question": "How many viewers streamed the latest season of the Dark Winds in us in September 2024?",
+      "expected_sql": "WITH Latest_Season AS (SELECT SERIES, MAX(SEASON_NUMBER) AS LATEST_SEASON_NUMBER FROM DIM_RAG_MODEL_TITLE WHERE lower(SERIES) = 'dark winds' GROUP BY SERIES) SELECT t.SEASON_NUMBER, SUM(v.NUMBER_STREAMED) AS total_number_streams FROM V_FCT_RAG_MODEL_CONTENT_VIEWS_MOCK v INNER JOIN DIM_RAG_MODEL_TITLE t ON v.EPISODE_ID = t.EPISODE_ID INNER JOIN Latest_Season ls ON t.SERIES = ls.SERIES AND t.SEASON_NUMBER = ls.LATEST_SEASON_NUMBER WHERE lower(v.country_code) = 'us' AND v.month = '09' AND v.year = 2024 AND lower(t.SERIES) = 'dark winds' GROUP BY t.SEASON_NUMBER ORDER BY t.SEASON_NUMBER DESC",
+      "sql_results": "SEASON_NUMBER	total_number_streams, 2 45671"
+    },
+    {
+      "user_question": "List seasons performance of the Walking Dead on amc+ in 2024?",
+      "expected_sql": "SELECT t.SEASON_NUMBER, SUM(v.MINUTES_VIEWS_ALL) AS total_minutes_viewed, SUM(v.NUMBER_STREAMED) AS total_number_streams, SUM(v.NUMBER_FIRST_STREAM) AS total_number_first_streams FROM V_FCT_RAG_MODEL_CONTENT_VIEWS_MOCK v INNER JOIN DIM_RAG_MODEL_TITLE t ON v.EPISODE_ID = t.EPISODE_ID WHERE lower(v.brand) = 'amc +' AND v.month IN ('01','02','03','04','05','06','07','08','09','10','11','12') AND v.year = 2024 AND t.CONTENT_TYPE = 'EPISODE' AND lower(t.SERIES) = 'walking dead, the' GROUP BY t.SEASON_NUMBER ORDER BY t.SEASON_NUMBER",
+      "sql_results": "SEASON_NUMBER	total_minutes_viewed	total_number_streams	total_number_first_streams, 1 854402 31011 2624, 2 1189586 44286 363, 3 957586 35781 160, 4 1136065 35885 222, 5 959977 39406 108, 6 1178575 49438 172, 7 257155 9281 61, 8 241874 8694 37, 9 414300 21567 509, 10 490173 18435 154, 11 581157 14330 79"
+    },
+    {
+      "user_question": "How does the streaming performance of the Walking Dead on amc+ compare between Q1 2024 and Q2 2024?",
+      "expected_sql": "SELECT v.month, t.SERIES, SUM(v.MINUTES_VIEWS_ALL) AS total_minutes_viewed, SUM(v.NUMBER_STREAMED) AS total_number_streams, SUM(v.NUMBER_FIRST_STREAM) AS total_number_first_streams FROM V_FCT_RAG_MODEL_CONTENT_VIEWS_MOCK v INNER JOIN DIM_RAG_MODEL_TITLE t ON v.EPISODE_ID = t.EPISODE_ID WHERE lower(v.brand) = 'amc +' AND t.CONTENT_TYPE = 'EPISODE' AND lower(t.SERIES) = 'walking dead, the' AND ((v.month IN ('01', '02', '03') AND v.year = 2024) OR (v.month IN ('04', '05', '06') AND v.year = 2024)) GROUP BY t.SERIES, v.month ORDER BY total_minutes_viewed DESC",
+      "sql_results": "month	SERIES	total_minutes_viewed	total_number_streams	total_number_first_streams, 03 'Walking Dead, The' 1796321 56694 818, 02 'Walking Dead, The' 1496612 47644 268, 05 'Walking Dead, The' 795465 27021 94, 06 'Walking Dead, The' 614451 26609 59, 04 'Walking Dead, The' 556844 32722 146, 01 'Walking Dead, The' 437298 18442 156"
+    },
+    {
+      "user_question": "Can you provide a ranking of the top 5 episodes of Daryl Dixon by minutes viewed on AMC + in the United States during 2024?",
+      "expected_sql": "SELECT top 5 t.EPISODE_TITLE, SUM(v.MINUTES_VIEWS_ALL) AS total_minutes_viewed FROM V_FCT_RAG_MODEL_CONTENT_VIEWS_MOCK v INNER JOIN DIM_RAG_MODEL_TITLE t ON v.EPISODE_ID = t.EPISODE_ID WHERE lower(v.brand) = 'amc +' AND lower(v.country_code) = 'us' AND v.month in ('01','02','03','04','05','06','07','08','09','10','11','12') AND v.year = 2024 AND t.CONTENT_TYPE = 'EPISODE' AND t.SERIES = 'Walking Dead, The: Daryl Dixon' GROUP BY t.EPISODE_TITLE ORDER BY total_minutes_viewed DESC",
+      "sql_results": "EPISODE_TITLE	total_minutes_viewed, 'Walking Dead, The: Daryl, Dixon: 01-004: La Dame de Fer' 11377560, 'Walking Dead, The: Daryl Dixon: 01-005: Deux Amours' 8931947, 'Walking Dead, The: Daryl Dixon 01-002: Alouette' 7420855, 'Walking Dead, The: Daryl Dixon 01-003: Paris Sera Toujours Paris' 6561956, 'Walking Dead, The: Daryl Dixon 01-001: L'ame Perdue' 4521467"
+    },
+    {
+      "user_question": "Provide top 5 series by minutes viewed featurted Andrew Lincoln on AMC + in the United States during 2024?",
+      "expected_sql": "SELECT top 5 t.SERIES, SUM(v.MINUTES_VIEWS_ALL) AS total_minutes_viewed FROM V_FCT_RAG_MODEL_CONTENT_VIEWS_MOCK v INNER JOIN DIM_RAG_MODEL_TITLE t ON v.EPISODE_ID = t.EPISODE_ID WHERE lower(v.brand) = 'amc +' AND lower(v.country_code) = 'us' AND v.month in ('01','02','03','04','05','06','07','08','09','10','11','12') AND v.year = 2024 AND t.CONTENT_TYPE = 'EPISODE' AND t.SERIES_CAST_AND_CREW LIKE '%andrew lincoln%' GROUP BY t.SERIES ORDER BY SUM(v.MINUTES_VIEWS_ALL) DESC",
+      "sql_results": "SERIES total_minutes_viewed, 'Walking Dead, The: The Ones Who Live' 122587688"
+    },
+    {
+      "user_question": "Can you provide a ranking of the top 5 series about zombies by minutes viewed on AMC + in the United States during 2024?",
+      "expected_sql": "SELECT top 5 t.SERIES, SUM(v.MINUTES_VIEWS_ALL) AS total_minutes_viewed FROM V_FCT_RAG_MODEL_CONTENT_VIEWS_MOCK v INNER JOIN DIM_RAG_MODEL_TITLE t ON v.EPISODE_ID = t.EPISODE_ID WHERE lower(v.brand) = 'amc +' AND lower(v.country_code) = 'us' AND v.year = 2024 AND t.SERIES_SYNOPSIS LIKE '%zombie%' GROUP BY t.SERIES ORDER BY total_minutes_viewed DESC",
+      "sql_results": "SERIES total_minutes_viewed, 'Walking Dead, The' 2770837, 'Z Nation' 1148894, 'Talking, Dead' 99998, 'Fear the Walking Dead: Episode Diaries' 60049"
+    },
+    {
+      "user_question": "How many new subscribers did we get for HIDIVE in the US through Apple in October 2023?",
+      "expected_sql": "SELECT SUM(TOTAL_NEW_SUBSCRIPTIONS) AS total_new_subscribers FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'HIDIVE' AND distributor = 'Apple' AND country_code = 'US' AND year = 2023 AND month = 10;",
+      "sql_results": "1259815"
+    },
+    {
+      "user_question": "How many trial and paid subscribers did we have for Shudder in Canada last quarter with Roku?",
+      "expected_sql": "SELECT SUM(TOTAL_TRIAL_SUBSCRIPTIONS) AS total_trial_subscribers, SUM(TOTAL_PAID_SUBSCRIPTIONS) AS total_paid_subscribers FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'Shudder' AND distributor = 'Roku' AND country_code = 'CA' AND year = 2023 AND month = 9;",
+      "sql_results": "total_trial_subscribers	total_paid_subscribers, 4187 82745"
+    },
+    {
+      "user_question": "Which distributors had the highest number of cancelled subscriptions for the brand 'Shudder' in February 2024 across all countries?",
+      "expected_sql": "SELECT distributor, SUM(TOTAL_CANCELLED_SUBSCRIPTIONS) AS total_cancelled FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'Shudder' AND year = 2024 AND month = 2 GROUP BY distributor ORDER BY total_cancelled DESC;",
+      "sql_results": "distributor total_cancelled, AMAZON 2584198, APPLE 497896, ROKU 334563, STRIPE 295552, GOOGLE 149948, YOUTUBE PRIMETIME, 93819 SAMSUNG, 51391 HORROR, TV 9514, YOUTUBE 951, VIZIO 288, FUBO 199, TELUS TTV 0, ROGERS 0, SLING 0, BELL TV 0, COX 0, DISH 0, FRONTIER 0"
+    },
+    {
+      "user_question": "How many new paid subscriptions were added by 'APPLE' for the brand 'ALLBLK' in the United Kingdom during March 2024?",
+      "expected_sql": "SELECT SUM(TOTAL_NEW_SUBSCRIPTIONS) AS total_new_paid_subscriptions FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'ALLBLK' AND distributor = 'APPLE' AND country_code = 'GB' AND year = 2024 AND month = 3;",
+      "sql_results": "0"
+    },
+    {
+      "user_question": "List top 3 countries by the trial subscriptions for the brand 'HIDIVE' in July 2024 across all distributors?",
+      "expected_sql": "SELECT TOP 3 country_code, SUM(TOTAL_TRIAL_SUBSCRIPTIONS) AS total_trial_subscriptions FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'HIDIVE' AND year = 2024 AND month = 7 GROUP BY country_code ORDER BY total_trial_subscriptions DESC;",
+      "sql_results": "country_code	total_trial_subscriptions, US 651301, AU 20839, CA 17341"
+    },
+    {
+      "user_question": "Compare the total number of new paid subscriptions for 'APPLE' and 'AMAZON' distributing 'Shudder' in Canada for the year 2024.",
+      "expected_sql": "SELECT distributor, SUM(TOTAL_NEW_SUBSCRIPTIONS) AS total_new_paid_subscriptions FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'Shudder' AND country_code = 'CA' AND year = 2024 AND distributor IN ('APPLE', 'AMAZON') GROUP BY distributor ORDER BY distributor;",
+      "sql_results": "distributor	total_new_paid_subscriptions, AMAZON 3984703, APPLE 430642"
+    },
+    {
+      "user_question": "Compare the total number of trial subscriptions for 'APPLE' and 'AMAZON' distributing 'Shudder' in Canada for the year 2023.",
+      "expected_sql": "SELECT distributor, SUM(TOTAL_TRIAL_SUBSCRIPTIONS) AS total_trial_subscriptions FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'Shudder' AND country_code = 'CA' AND year = 2023 and MONTH = 12 AND distributor IN ('APPLE', 'AMAZON') GROUP BY distributor ORDER BY distributor;",
+      "sql_results": "distributor	total_trial_subscriptions, AMAZON 658154, APPLE 26840"
+    },
+    {
+      "user_question": "For HIDIVE in Canada, which month in 2023 had the largest increase in cancellations, and what was the total number of trial subscriptions by the end of that month?",
+      "expected_sql": "SELECT TOP 1 month, year, SUM(TOTAL_CANCELLED_SUBSCRIPTIONS) AS total_cancelled, SUM(TOTAL_TRIAL_SUBSCRIPTIONS) AS total_trial FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'HIDIVE' AND country_code = 'CA' AND year = 2023 GROUP BY month, year ORDER BY total_cancelled DESC, month DESC;",
+      "sql_results": "month	year	total_cancelled	total_trial, 12 2023 94781 11004"
+    },
+    {
+      "user_question": "In which month did Shudder experience the largest decline in new subscriptions in the US for 2023? Please show adjacent months.",
+      "expected_sql": "WITH decline_data AS ( SELECT month, year, SUM(TOTAL_NEW_SUBSCRIPTIONS) AS total_new FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'Shudder' AND country_code = 'US' AND year = 2023 GROUP BY month, year ), target_month AS ( SELECT TOP 1 month, year FROM decline_data ORDER BY total_new ASC ) SELECT d.month, d.year, d.total_new FROM decline_data d JOIN target_month t ON (d.year = t.year AND (d.month = t.month OR d.month = t.month - 1 OR d.month = t.month + 1)) OR (t.month = 1 AND d.month = 12 AND d.year = t.year - 1) OR (t.month = 12 AND d.month = 1 AND d.year = t.year + 1) ORDER BY d.year, d.month;",
+      "sql_results": "month	year	total_new, 6 2023 4065754, 7 2023 1593032, 8 2023 4158665"
+    },
+    {
+      "user_question": "Could you give me a comparison of the new subs acquisition in North America for AMC+ last spring compared to this spring?",
+      "expected_sql": "WITH spring_acquisitions AS ( SELECT year, month, SUM(TOTAL_NEW_SUBSCRIPTIONS) AS total_new FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'AMC +' AND country_code IN ('US', 'CA') AND ((year = 2023 OR year = 2024) AND month BETWEEN 3 AND 5) GROUP BY year, month ) SELECT year, SUM(total_new) AS total_new_acquisitions FROM spring_acquisitions GROUP BY year ORDER BY year;",
+      "sql_results": "year	total_new_acquisitions, 2023 30653914, 2024 104554740"
+    },
+    {
+      "user_question": "Could you give me a comparison of the trial subs acquisition in North America for HIDIVE between Q1 and Q2 of 2024?",
+      "expected_sql": "WITH quarterly_trials AS ( SELECT CASE WHEN month BETWEEN 1 AND 3 THEN 'Q1' WHEN month BETWEEN 4 AND 6 THEN 'Q2' END AS quarter, year, SUM(TOTAL_TRIAL_SUBSCRIPTIONS) AS total_trial FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE brand = 'HIDIVE' AND country_code IN ('US', 'CA') AND year = 2024 AND month BETWEEN 1 AND 6 GROUP BY CASE WHEN month BETWEEN 1 AND 3 THEN 'Q1' WHEN month BETWEEN 4 AND 6 THEN 'Q2' END, year ) SELECT quarter, total_trial AS total_trial_acquisitions FROM quarterly_trials ORDER BY quarter;",
+      "sql_results": "quarter	total_trial_acquisitions, Q1 3026988, Q2 1791212"
+    },
+    {
+      "user_question": "How many new subscribers did we get for fetch on acorn in the United Kingdom in May 2023?",
+      "expected_sql": "SELECT SUM(TOTAL_NEW_SUBSCRIPTIONS) FROM V_FCT_RAG_MODEL_SUBS_METRICS_MOCK WHERE BRAND = 'acorn' AND DISTRIBUTOR = 'fetch' AND COUNTRY_CODE = 'GB' AND YEAR = 2023 AND MONTH = 5;",
+      "sql_results": "22"
+    }
+  ]
+}
