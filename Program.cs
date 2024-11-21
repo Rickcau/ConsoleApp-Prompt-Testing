@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using Newtonsoft.Json.Linq;
 using System.Linq;
+using ConsoleApp_Prompt_Testing.Models;
 
 class Program
 {
@@ -20,19 +21,19 @@ class Program
     private static readonly string apiUrl = "https://localhost:7097/Chat";
     private static readonly string apiKey = "1234";
 
-    public class ChatRequest
-    {
-        public string? SessionId { get; set; }
-        public string? UserId { get; set; }
-        public string? Prompt { get; set; }
-    }
+    //public class ChatRequest
+    //{
+    //    public string? SessionId { get; set; }
+    //    public string? UserId { get; set; }
+    //    public string? Prompt { get; set; }
+    //}
 
-    public class ChatProviderResponse
-    {
-        [JsonPropertyName("chatResponse")]
-        public string? ChatResponse { get; set; }
-        public string? Query { get; set; }
-    }
+    //public class ChatProviderResponse
+    //{
+    //    [JsonPropertyName("chatResponse")]
+    //    public string? ChatResponse { get; set; }
+    //    public string? Query { get; set; }
+    //}
 
     static async Task Main(string[] args)
     {
@@ -103,11 +104,12 @@ class Program
         {
             Console.WriteLine($"Processing prompt {i + 1} of {prompts.Count}...");
 
-            var request = new ChatRequest
+            var request = new ChatProviderRequest
             {
                 SessionId = "12345",
                 UserId = "test",
-                Prompt = prompts[i]
+                Prompt = prompts[i],
+                RunValidation = true,
             };
 
             try
@@ -120,12 +122,12 @@ class Program
             catch (Exception ex)
             {
                 Console.WriteLine($"Error processing prompt {i + 1}: {ex.Message}");
-                await LogResponseToFile(i, prompts[i], $"Error: {ex.Message}");
+                await LogResponseToFile(i, prompts[i], new ChatProviderResponse(), ex.Message);
             }
         }
     }
 
-    static async Task<string> SendChatRequest(ChatRequest request)
+    static async Task<ChatProviderResponse> SendChatRequest(ChatProviderRequest request)
     {
         try
         {
@@ -143,7 +145,7 @@ class Program
                 throw new Exception("Received empty response from server");
             }
 
-            return chatResponse.ChatResponse;
+            return chatResponse;
         }
         catch (HttpRequestException ex)
         {
@@ -151,10 +153,20 @@ class Program
         }
     }
 
-    static async Task LogResponseToFile(int count, string prompt, string response)
+    static async Task LogResponseToFile(int count, string prompt, ChatProviderResponse response, string? errormsg = null)
     {
         var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-        var logEntry = $"[{count}.\n{timestamp}]\nPrompt: {prompt}\nResponse: {response}\n\n";
+        var logEntry = $"[{count}.\n{timestamp}]\nPrompt: {prompt}";
+
+        if (!string.IsNullOrEmpty(errormsg))
+        {
+            logEntry += $"\nError: {errormsg}";
+        }
+        else if (response != null)
+        {
+            logEntry += $"\nResponse: {response.ChatResponse}\nQuery: {response.Query}\nValidation Response:{response.ValidationResponse}";
+        }
+
         await File.AppendAllTextAsync(outputFile, logEntry);
     }
 }
