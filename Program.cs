@@ -74,6 +74,17 @@ class Program
                 .Where(question => !string.IsNullOrEmpty(question))
                 .ToList();
 
+            // Extract expected SQL into a list
+            var expectedSQL = jsonObject["user_question_answer"]?
+                .Select(item => item["expected_sql"]?.ToString())
+                .Where(question => !string.IsNullOrEmpty(question))
+                .ToList();
+
+            var expectedSQLResults = jsonObject["user_question_answer"]?
+                .Select(item => item["sql_results"]?.ToString())
+                .Where(question => !string.IsNullOrEmpty(question))
+                .ToList();
+
             if (prompts == null || !prompts.Any())
             {
                 throw new Exception("No valid user questions found in the JSON file.");
@@ -84,7 +95,7 @@ class Program
 
             // Process all prompts
             Console.WriteLine($"Processing {prompts.Count} prompts...");
-            await ProcessPromptsSequentially(prompts);
+            await ProcessPromptsSequentially(prompts, expectedSQL, expectedSQLResults);
 
             // Write completion time to file
             await File.AppendAllTextAsync(outputFile, $"\nProcess completed at: {DateTime.Now}");
@@ -99,7 +110,7 @@ class Program
         }
     }
 
-    static async Task ProcessPromptsSequentially(List<string> prompts)
+    static async Task ProcessPromptsSequentially(List<string> prompts, List<string> expectedSQL, List<string> expectedSQLResults)
     {
         for (int i = 0; i < prompts.Count; i++)
         {
@@ -117,13 +128,13 @@ class Program
             {
                 // Send request and wait for the complete response
                 var response = await SendChatRequest(request);
-                await LogResponseToFile(i,prompts[i], response);
+                await LogResponseToFile(i,prompts[i], expectedSQL[i], expectedSQLResults[i], response);
                 Console.WriteLine($"Prompt {i + 1} processed successfully.");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error processing prompt {i + 1}: {ex.Message}");
-                await LogResponseToFile(i, prompts[i], new ChatProviderValidationResponse(), ex.Message);
+                await LogResponseToFile(i, prompts[i], expectedSQL[i], expectedSQLResults[i], new ChatProviderValidationResponse(), ex.Message);
             }
         }
     }
@@ -154,10 +165,12 @@ class Program
         }
     }
 
-    static async Task LogResponseToFile(int count, string prompt, ChatProviderValidationResponse response, string? errormsg = null)
+    static async Task LogResponseToFile(int count, string prompt, string expectedSQL, string expectedSQLResults, ChatProviderValidationResponse response, string? errormsg = null)
     {
         var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-        var logEntry = $"{count}.\n[{timestamp}]\nPrompt: {prompt}";
+        var logEntry = $"{count}.\n[{timestamp}]\n## Grounding Truth ##\nUser Question: {prompt}";
+        logEntry += $"\nExpected SQL Select: {expectedSQL}\n\n";
+        logEntry += $"\nExpected Results: {expectedSQLResults}\n\n";
 
         if (!string.IsNullOrEmpty(errormsg))
         {
@@ -184,7 +197,7 @@ class Program
                                    $"Rating: {rating}\n\n";
             }
 
-            logEntry += $"\nResponse: {response.ChatResponse}\n\nQuery: {response.Query}\n\n# Validation Response #\n{validationResponse}";
+            logEntry += $"\nLLM Response: {response.ChatResponse}\n\nQuery Generated: {response.Query}\n\n# Validation Response #\n{validationResponse}";
         }
 
         await File.AppendAllTextAsync(outputFile, logEntry);
